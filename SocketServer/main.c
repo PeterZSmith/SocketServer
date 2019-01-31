@@ -27,7 +27,7 @@ int main(int argc, char *argv[])
     int newsockfd;      // file descriptor of socket used for data transfer
     int portno=51717;   // default port optionally overridden by user input
     const int request_queue_size=5;   // maximum number of pending requests
-    const int bufsize=256;
+    const int bufsize=10;
     char buffer[bufsize];   // Received message
     char response[] = "I got your message";  // Response from server to client
     struct sockaddr_in serv_addr_in;  // Server internet namespace socket address
@@ -68,12 +68,21 @@ int main(int argc, char *argv[])
     
     // Wait for data from client
     memset(buffer, 0, bufsize);
-    ssize_t message_size = read(newsockfd, buffer, bufsize-1);
+    ssize_t message_size;
+    message_size = read(newsockfd, buffer, bufsize-1);
     if (message_size == -1)
         error("Error reading from socket");
-    
+
     // Display the received message
-    printf("Here is the message: %s\n", buffer);
+    printf("Here is the message:\n\n%s", buffer);
+    
+    while ( message_size == bufsize-1 ) {
+        memset(buffer, 0, bufsize);
+        message_size = read(newsockfd, buffer, bufsize-1);
+        if (message_size == -1)
+            error("Error reading from socket");
+        fputs(buffer, stdout);
+    }
     
     // Respond to client
     if (write(newsockfd, response, sizeof(response)) == -1)
