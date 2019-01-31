@@ -14,6 +14,10 @@
 #include <netinet/in.h>
 #include <string.h>
 #include <unistd.h>
+#include <errno.h>
+#include <stdbool.h>
+
+void converse(int sockfd);   // Messages handler
 
 void error(char *msg)
 {
@@ -27,14 +31,12 @@ int main(int argc, char *argv[])
     int newsockfd;      // file descriptor of socket used for data transfer
     int portno=51717;   // default port optionally overridden by user input
     const int request_queue_size=5;   // maximum number of pending requests
-    const int bufsize=10;
-    char buffer[bufsize];   // Received message
-    char response[] = "I got your message";  // Response from server to client
     struct sockaddr_in serv_addr_in;  // Server internet namespace socket address
     struct sockaddr_in cli_addr_in;   // Client internet namespace socket address
     struct sockaddr *serv_addr = (struct sockaddr *) &serv_addr_in;     // Generic address for passing to system calls
     struct sockaddr *cli_addr = (struct sockaddr *) &cli_addr_in;       // Generic address for passing to system calls
     socklen_t sockaddr_len = sizeof(struct sockaddr_in);    // Actual size of address structures when passing pointer to generic address
+    pid_t pid;  // process id returned by fork()
     
     // Specify port number
     if (argc > 1)
@@ -61,15 +63,41 @@ int main(int argc, char *argv[])
     if (listen(sockfd,request_queue_size) == -1)
         error("Error turning on listening for connection requests");
     
-    // Accept a connection, blocking until the connection is established. Address interpreted according to sin_family value
-    newsockfd = accept(sockfd, cli_addr, &sockaddr_len);
-    if (newsockfd == -1)
-        error("Error accepting connection request");
+    // Requests processing
+    while (true) {
+        // Accept a connection, blocking until the connection is established. Address interpreted according to sin_family value
+        newsockfd = accept(sockfd, cli_addr, &sockaddr_len);
+        if (newsockfd == -1)
+            error("Error accepting connection request");
     
+        // Create process to handle this connection
+        pid = fork();
+        if (pid == -1)
+            error("Error creating connection process");
+    
+        // Process messages
+        if (pid == 0) {
+            // this is the child process
+            close(sockfd);
+            converse(newsockfd);
+            exit(EXIT_SUCCESS);
+        }
+        else {
+            // this is the parent process
+            close(newsockfd);
+        }
+    }
+}
+
+void converse(int sockfd) {
+    const int bufsize=10;
+    char buffer[bufsize];   // Received message
+    char response[] = "I got your message";  // Response from server to client
+
     // Wait for data from client
     memset(buffer, 0, bufsize);
     ssize_t message_size;
-    message_size = read(newsockfd, buffer, bufsize-1);
+    message_size = read(sockfd, buffer, bufsize-1);
     if (message_size == -1)
         error("Error reading from socket");
 
@@ -78,15 +106,13 @@ int main(int argc, char *argv[])
     
     while ( message_size == bufsize-1 ) {
         memset(buffer, 0, bufsize);
-        message_size = read(newsockfd, buffer, bufsize-1);
+        message_size = read(sockfd, buffer, bufsize-1);
         if (message_size == -1)
             error("Error reading from socket");
         fputs(buffer, stdout);
     }
     
     // Respond to client
-    if (write(newsockfd, response, sizeof(response)) == -1)
+    if (write(sockfd, response, sizeof(response)) == -1)
         error("Error writing to socket");
-    
-    return 0;
 }
