@@ -29,7 +29,7 @@ int main(int argc, char *argv[])
     const int request_queue_size=5;   // maximum number of pending requests
     const int bufsize=256;
     char buffer[bufsize];   // Received message
-    char *response = "I got your message";  // Response from server to client
+    char response[] = "I got your message";  // Response from server to client
     struct sockaddr_in serv_addr_in;  // Server internet namespace socket address
     struct sockaddr_in cli_addr_in;   // Client internet namespace socket address
     struct sockaddr *serv_addr = (struct sockaddr *) &serv_addr_in;     // Generic address for passing to system calls
@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
     // Create socket with internet namespace, stream type, default protocol (TCP)
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
     if (sockfd == -1)
-        error("ERROR creating socket");
+        error("Error creating socket");
     
     // Server address
     memset((char *) &serv_addr_in, 0, sizeof(serv_addr_in));  // Clear the address object
@@ -55,7 +55,7 @@ int main(int argc, char *argv[])
     
     // Bind socket to server address, interpreting address according to its sin_family value
     if (bind(sockfd, serv_addr, sockaddr_len) == -1)
-        error("ERROR on binding");
+        error("Error on binding");
     
     // Listen for connection requests, blocking
     if (listen(sockfd,request_queue_size) == -1)
@@ -64,20 +64,20 @@ int main(int argc, char *argv[])
     // Accept a connection, blocking until the connection is established. Address interpreted according to sin_family value
     newsockfd = accept(sockfd, cli_addr, &sockaddr_len);
     if (newsockfd == -1)
-        error("ERROR accepting connection request");
+        error("Error accepting connection request");
     
     // Wait for data from client
     memset(buffer, 0, bufsize);
     ssize_t message_size = read(newsockfd, buffer, bufsize-1);
     if (message_size == -1)
-        error("ERROR reading from socket");
+        error("Error reading from socket");
     
     // Display the received message
     printf("Here is the message: %s\n", buffer);
     
     // Respond to client
     if (write(newsockfd, response, sizeof(response)) == -1)
-        error("ERROR writing to socket");
+        error("Error writing to socket");
     
     return 0;
 }
